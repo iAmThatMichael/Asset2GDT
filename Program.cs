@@ -27,34 +27,40 @@ namespace Weap2GDT
         }
         private static void StartExport(string[] weapons)
         {
-            string file = weapons[0];
-            // error out if we're exporting as a folder.
-            FileAttributes attr = File.GetAttributes(file);
-            bool isFolder = (attr & FileAttributes.Directory) == FileAttributes.Directory;
-            if (isFolder)
-                WriteConsole("ERROR: Folder support has not been added yet!", true);
             // if we only only have one weapon to export, export as a single GDT
             if (weapons.Length == 1)
                 ExportSingleGDT(weapons[0]);
-            // if we have more than one weapon to export, export as a group GDT
+            // else export as a group GDT
             else
                 ExportGroupGDT(weapons);
         }
         private static void ExportSingleGDT(string weapon)
         {
-            string weaponName = GetWeaponName(weapon);
+            CheckIfFolder(weapon);
             // sorted dictionary to auto sort the data
             SortedDictionary<string, string> d_wf = GetWeaponDictionary(weapon);
-            GenerateSingleGDT(weaponName, GetSaveFileLocation(weapon), d_wf);
+            GenerateSingleGDT(GetWeaponName(weapon), GetSaveFileLocation(weapon, false), d_wf);
         }
         private static void ExportGroupGDT(string[] weapons)
         {
-            return; //to-do
-            for(int i = 0; i < weapons.Length; i++)
+            string saveFileLoc = GetSaveFileLocation(Path.GetFullPath(weapons[0]), true);
+            // delete the file if it exists.
+            if (File.Exists(saveFileLoc))
+                File.Delete(saveFileLoc);
+            FileStream gdtStream = new FileStream(saveFileLoc, FileMode.OpenOrCreate, FileAccess.Write);
+            using(StreamWriter file = new StreamWriter(gdtStream))
             {
-                string weapon = weapons[i];
-                // sorted dictionary to auto sort the data
-                SortedDictionary<string, string> d_wf = GetWeaponDictionary(weapon);
+                file.WriteLine();
+                file.WriteLine("{");
+                for (int i = 0; i < weapons.Length; i++)
+                {
+                    string weapon = weapons[i];
+                    // sorted dictionary to auto sort the data
+                    SortedDictionary<string, string> d_wf = GetWeaponDictionary(weapon);
+                    WriteWeaponData(GetWeaponName(weapon), DetermineGDFType(d_wf), d_wf, file);
+                }
+                file.WriteLine("}");
+                file.Close();
             }
         }
         private static void GenerateSingleGDT(string weaponName, string saveFileLoc, SortedDictionary<string, string> d_wf)
@@ -70,24 +76,19 @@ namespace Weap2GDT
             {
                 file.WriteLine();
                 file.WriteLine("{");
-                file.WriteLine("\t\"{0}\" ( \"{1}\" )", weaponName, configstringGDFType);
-                file.WriteLine("\t{");
-                foreach (KeyValuePair<string, string> kvp in d_wf)
-                    file.WriteLine("\t\t\"{0}\" \"{1}\"", kvp.Key, kvp.Value);
-                file.WriteLine("\t}");
+                WriteWeaponData(weaponName, configstringGDFType, d_wf, file);
                 file.WriteLine("}");
                 file.Close();
             }
             weapStream.Close();
         }
-        private static string GetSaveFileLocation(string weapon)
+        private static string GetSaveFileLocation(string file, bool group)
         {
-            string weaponName = Path.GetFileNameWithoutExtension(weapon);
             // get the directory before the file
-            DirectoryInfo saveFolder = Directory.GetParent(weapon);
-            // generate the save location
-            string saveFileLoc = saveFolder + @"\" + "weapon_" + weaponName + ".gdt";
-            return saveFileLoc;
+            DirectoryInfo saveFolder = Directory.GetParent(file);
+            //string sourceFolder = (!GetWeaponName(file).Contains("_mp")) ? "sp" : "mp";
+            string exportName = (group) ? "weapon_grouped" : "weapon_" + Path.GetFileNameWithoutExtension(file);
+            return saveFolder + @"\" + exportName +  ".gdt";
         }
         private static string[] GetSplitContents(string weapon, char delimiter)
         {
@@ -97,7 +98,7 @@ namespace Weap2GDT
             string[] splitContents = contents.Split(delimiter);
             // make sure we're doing a weaponfile
             if (splitContents[0] != "WEAPONFILE")
-                WriteConsole("ERROR: Supplied file isn't a WEAPONFLE!", true);
+                WriteConsole("ERROR: File \"" + GetWeaponName(weapon) + "\" isn't a WEAPONFLE!", true);
             return splitContents;
         }
         private static SortedDictionary<string, string> GetWeaponDictionary(string weapon)
@@ -140,6 +141,26 @@ namespace Weap2GDT
             string targetFolder = (!weaponName.Contains("_mp")) ? "1: Single-Player" : "2: Multi-Player";
             d_wf.Add("targetFolder", targetFolder);
             return d_wf;
+        }
+        private static void CheckIfFolder(string file)
+        {
+            // error out if we're exporting as a folder.
+            FileAttributes attr = File.GetAttributes(file);
+            bool isFolder = (attr & FileAttributes.Directory) == FileAttributes.Directory;
+            if (isFolder)
+                WriteConsole("ERROR: Trying to export a folder. Folder support has not been added yet!", true);
+        }
+        private static bool CheckIfFolder(string[] weapons)
+        {
+            foreach (string file in weapons)
+            {
+                // error out if we're exporting as a folder.
+                FileAttributes attr = File.GetAttributes(file);
+                bool isFolder = (attr & FileAttributes.Directory) == FileAttributes.Directory;
+                if (isFolder)
+                    WriteConsole("ERROR: Trying to export a folder. Folder support has not been added yet!", true);
+            }
+            return false;
         }
         private static string GetWeaponName(string weapon)
         {
@@ -197,6 +218,14 @@ namespace Weap2GDT
                     break;
             }
             return GDFType + GDFExtn;
+        }
+        private static void WriteWeaponData(string weaponName, string configstringGDFType, SortedDictionary<string, string> d_wf, StreamWriter file)
+        {
+            file.WriteLine("\t\"{0}\" ( \"{1}\" )", weaponName, configstringGDFType);
+            file.WriteLine("\t{");
+            foreach (KeyValuePair<string, string> kvp in d_wf)
+                file.WriteLine("\t\t\"{0}\" \"{1}\"", kvp.Key, kvp.Value);
+            file.WriteLine("\t}");
         }
         // streamlined console messages 
         private static void WriteConsole(string message, bool abort)
