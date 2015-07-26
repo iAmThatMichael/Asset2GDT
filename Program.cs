@@ -58,6 +58,8 @@ namespace Weap2GDT
                 for (int i = 0; i < weapons.Length; i++)
                 {
                     string weapon = weapons[i];
+                    if (CheckIfBadWeapon(weapon))
+                        continue;
                     // sorted dictionary to auto sort the data
                     SortedDictionary<string, string> d_wf = GetWeaponDictionary(weapon);
                     WriteWeaponData(GetWeaponName(weapon), DetermineGDFType(d_wf), d_wf, file);
@@ -95,13 +97,16 @@ namespace Weap2GDT
         }
         private static string[] GetSplitContents(string weapon, char delimiter)
         {
+            // exit if we have a file with an extension
+            if (Path.HasExtension(weapon))
+                return null;
             // read the file in
             string contents = File.ReadAllText(weapon);
             // split at every '\'
             string[] splitContents = contents.Split(delimiter);
             // make sure we're doing a weaponfile
-            if (splitContents[0] != "WEAPONFILE")
-                WriteConsole("ERROR: File \"" + GetWeaponName(weapon) + "\" isn't a WEAPONFLE!", true);
+            //if (splitContents[0] != "WEAPONFILE")
+            //    WriteConsole("ERROR: File \"" + GetWeaponName(weapon) + "\" isn't a WEAPONFLE!", true);
             return splitContents;
         }
         private static SortedDictionary<string, string> GetWeaponDictionary(string weapon)
@@ -144,6 +149,24 @@ namespace Weap2GDT
             string targetFolder = (!weaponName.Contains("_mp")) ? "1: Single-Player" : "2: Multi-Player";
             d_wf.Add("targetFolder", targetFolder);
             return d_wf;
+        }
+        private static bool CheckIfBadWeapon(string weapon)
+        {
+            string weaponName = GetWeaponName(weapon);
+            // split the data at every '\'
+            string[] splitContents = GetSplitContents(weapon, '\\');
+            // get the file type (i.e. WEAPONFILE, FLAMETABLEFILE)
+            // check to exit if we don't have a var
+            if (splitContents == null)
+                return true;
+            string configstringFileType = splitContents[0];
+            if (configstringFileType != "WEAPONFILE")
+            {
+                WriteConsole("WARNING: Ignoring weapon " + weaponName + " due to incompatible format of " + configstringFileType + "!", false);
+                Thread.Sleep(1000);
+                return true;
+            }
+            return false;
         }
         private static bool CheckIfFolder(string file)
         {
