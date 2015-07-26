@@ -30,22 +30,19 @@ namespace Weap2GDT
             // if we only only have one weapon to export, export as a single GDT
             if (weapons.Length == 1 && !CheckIfFolder(weapons[0]))
                 ExportSingleGDT(weapons[0]);
-            // if we only have have one folder to export, export as grouped gdt
-            else if(weapons.Length == 1 && CheckIfFolder(weapons[0]))
-                ExportGroupGDT(Directory.GetFiles(weapons[0]));
             // else we assume it's multiple, export as grouped gdt
             else
                 ExportGroupGDT(weapons);
         }
         private static void ExportSingleGDT(string weapon)
         {
-            bool folder = CheckIfFolder(weapon);
             // sorted dictionary to auto sort the data
             SortedDictionary<string, string> d_wf = GetWeaponDictionary(weapon);
             GenerateSingleGDT(GetWeaponName(weapon), GetSaveFileLocation(weapon, false), d_wf);
         }
         private static void ExportGroupGDT(string[] weapons)
         {
+            weapons = (CheckIfFolder(weapons[0])) ? Directory.GetFiles(weapons[0]) : weapons;
             string saveFileLoc = GetSaveFileLocation(Path.GetFullPath(weapons[0]), true);
             // delete the file if it exists.
             if (File.Exists(saveFileLoc))
@@ -155,10 +152,10 @@ namespace Weap2GDT
             string weaponName = GetWeaponName(weapon);
             // split the data at every '\'
             string[] splitContents = GetSplitContents(weapon, '\\');
-            // get the file type (i.e. WEAPONFILE, FLAMETABLEFILE)
             // check to exit if we don't have a var
             if (splitContents == null)
                 return true;
+            // get the file type (i.e. WEAPONFILE, FLAMETABLEFILE)
             string configstringFileType = splitContents[0];
             if (configstringFileType != "WEAPONFILE")
             {

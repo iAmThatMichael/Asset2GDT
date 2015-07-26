@@ -4,7 +4,6 @@
     <StartArguments>"E:\Program Files %28x86%29\Steam\SteamApps\common\Call of Duty World at War\raw\weapons\sp"</StartArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
-    <StartArguments>
-    </StartArguments>
+    <StartArguments>"E:\Program Files %28x86%29\Steam\SteamApps\common\Call of Duty World at War\raw\weapons\sp"</StartArguments>
   </PropertyGroup>
 </Project>
