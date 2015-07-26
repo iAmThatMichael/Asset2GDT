@@ -28,15 +28,18 @@ namespace Weap2GDT
         private static void StartExport(string[] weapons)
         {
             // if we only only have one weapon to export, export as a single GDT
-            if (weapons.Length == 1)
+            if (weapons.Length == 1 && !CheckIfFolder(weapons[0]))
                 ExportSingleGDT(weapons[0]);
-            // else export as a group GDT
+            // if we only have have one folder to export, export as grouped gdt
+            else if(weapons.Length == 1 && CheckIfFolder(weapons[0]))
+                ExportGroupGDT(Directory.GetFiles(weapons[0]));
+            // else we assume it's multiple, export as grouped gdt
             else
                 ExportGroupGDT(weapons);
         }
         private static void ExportSingleGDT(string weapon)
         {
-            CheckIfFolder(weapon);
+            bool folder = CheckIfFolder(weapon);
             // sorted dictionary to auto sort the data
             SortedDictionary<string, string> d_wf = GetWeaponDictionary(weapon);
             GenerateSingleGDT(GetWeaponName(weapon), GetSaveFileLocation(weapon, false), d_wf);
@@ -142,13 +145,14 @@ namespace Weap2GDT
             d_wf.Add("targetFolder", targetFolder);
             return d_wf;
         }
-        private static void CheckIfFolder(string file)
+        private static bool CheckIfFolder(string file)
         {
             // error out if we're exporting as a folder.
             FileAttributes attr = File.GetAttributes(file);
             bool isFolder = (attr & FileAttributes.Directory) == FileAttributes.Directory;
             if (isFolder)
-                WriteConsole("ERROR: Trying to export a folder. Folder support has not been added yet!", true);
+                return true;
+            return false;
         }
         private static bool CheckIfFolder(string[] weapons)
         {
@@ -158,7 +162,7 @@ namespace Weap2GDT
                 FileAttributes attr = File.GetAttributes(file);
                 bool isFolder = (attr & FileAttributes.Directory) == FileAttributes.Directory;
                 if (isFolder)
-                    WriteConsole("ERROR: Trying to export a folder. Folder support has not been added yet!", true);
+                    return true;
             }
             return false;
         }
