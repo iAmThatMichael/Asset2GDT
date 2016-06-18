@@ -6,8 +6,8 @@ using System.Resources;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Weapon to GDT")]
-[assembly: AssemblyDescription("Generate a GDT-compatible file from a weaponfile for Asset Manager")]
+[assembly: AssemblyTitle("Asset to GDT")]
+[assembly: AssemblyDescription("Generate a GDT-compatible file from a assetfile for Asset Manager")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("DidUknowiPwn")]
 [assembly: AssemblyProduct("Weap2GDT")]
