@@ -10,7 +10,7 @@ using System.Resources;
 [assembly: AssemblyDescription("Generate a GDT-compatible file from a assetfile for Asset Manager")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("DidUknowiPwn")]
-[assembly: AssemblyProduct("Weap2GDT")]
+[assembly: AssemblyProduct("Asset2GDT")]
 [assembly: AssemblyCopyright("Copyright © DidUknowiPwn 2015")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

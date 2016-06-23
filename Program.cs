@@ -10,20 +10,55 @@
 
 using System;
 using System.IO;
+using System.Windows.Forms;
 using System.Threading;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using Microsoft.Win32;
 
-namespace Weap2GDT
+namespace Asset2GDT
 {
     class Program
     {
+        private class PropertyInfo
+        {
+            public string Property { get; set; }
+            public string Label { get; set; }
+            public string Description { get; set; }
+            public double Increment { get; set; }
+            public double HoldIncrement { get; set; }
+            public Type Type { get; set; }
+        }
+
+        private static Dictionary<string, PropertyInfo> KnownProperties { get; set; }
+
+        [STAThread]
         static void Main(string[] args)
         {
             if (args.Length < 1)
+            {
+                // fix
+                /*FolderBrowserDialog folderBrowser = new System.Windows.Forms.FolderBrowserDialog();
+                if (folderBrowser.ShowDialog() == DialogResult.OK)
+                {
+                    Console.WriteLine("Working path: {0}", folderBrowser.SelectedPath);
+                    StartExport(folderBrowser.SelectedPath);
+                }*/
                 WriteConsole("ERROR: No asset file supplied. (Drag-and-Drop supported or use parameters.)", true);
+            }
             else
                 StartExport(args);
         }
+        /*private static void StartExport(string location)
+        {
+            if (CheckIfFolder(location))
+                ExportGroupGDT(location);
+            else
+                ExportSingleGDT(location);
+        }*/
+        
         private static void StartExport(string[] assets)
         {
             // if we only only have one asset to export, export as a single GDT
@@ -33,12 +68,14 @@ namespace Weap2GDT
             else
                 ExportGroupGDT(assets);
         }
+        
         private static void ExportSingleGDT(string asset)
         {
             // sorted dictionary to auto sort the data
             SortedDictionary<string, string> d_wf = GetAssetDictionary(asset);
             GenerateSingleGDT(GetAssetName(asset), GetSaveFileLocation(asset, false), d_wf);
         }
+       
         private static void ExportGroupGDT(string[] assets)
         {
             assets = (CheckIfFolder(assets[0])) ? Directory.GetFiles(assets[0]) : assets;
@@ -47,17 +84,15 @@ namespace Weap2GDT
             if (File.Exists(saveFileLoc))
                 File.Delete(saveFileLoc);
             FileStream gdtStream = new FileStream(saveFileLoc, FileMode.OpenOrCreate, FileAccess.Write);
-            using(StreamWriter file = new StreamWriter(gdtStream))
+            using (StreamWriter file = new StreamWriter(gdtStream))
             {
                 file.WriteLine();
                 file.WriteLine("{");
                 for (int i = 0; i < assets.Length; i++)
                 {
                     string asset = assets[i];
-                    if (Path.HasExtension(asset))
+                    if (CheckIfBadAsset(asset))
                         continue;
-                    //if (CheckIfBadAsset(asset))
-                    //    continue;
                     // sorted dictionary to auto sort the data
                     SortedDictionary<string, string> d_wf = GetAssetDictionary(asset);
                     WriteAssetData(GetAssetName(asset), DetermineGDFType(d_wf), d_wf, file);
@@ -66,6 +101,7 @@ namespace Weap2GDT
                 file.Close();
             }
         }
+       
         private static void GenerateSingleGDT(string assetName, string saveFileLoc, SortedDictionary<string, string> d_wf)
         {
             // delete the file if it exists.
@@ -85,14 +121,16 @@ namespace Weap2GDT
             }
             gdtStream.Close();
         }
+        
         private static string GetSaveFileLocation(string file, bool group)
         {
             // get the directory before the file
             DirectoryInfo saveFolder = Directory.GetParent(file);
             //string sourceFolder = (!GetAssetName(file).Contains("_mp")) ? "sp" : "mp";
             string exportName = (group) ? "asset_grouped" : "asset_" + Path.GetFileNameWithoutExtension(file);
-            return saveFolder + @"\" + exportName +  ".gdt";
+            return saveFolder + @"\" + exportName + ".gdt";
         }
+      
         private static string[] GetSplitContents(string asset, char delimiter)
         {
             // exit if we have a file with an extension
@@ -102,11 +140,9 @@ namespace Weap2GDT
             string contents = File.ReadAllText(asset);
             // split at every '\'
             string[] splitContents = contents.Split(delimiter);
-            // make sure we're doing a assetfile
-            //if (splitContents[0] != "WEAPONFILE")
-            //    WriteConsole("ERROR: File \"" + GetAssetName(asset) + "\" isn't a WEAPONFLE!", true);
             return splitContents;
         }
+        
         private static SortedDictionary<string, string> GetAssetDictionary(string asset)
         {
             string assetName = GetAssetName(asset);
@@ -148,50 +184,45 @@ namespace Weap2GDT
             d_wf.Add("targetFolder", targetFolder);
             return d_wf;
         }
+         
         private static bool CheckIfBadAsset(string asset)
         {
             string assetName = GetAssetName(asset);
             // split the data at every '\'
             string[] splitContents = GetSplitContents(asset, '\\');
             // check to exit if we don't have a var
-            if (splitContents == null)
+            if (splitContents == null || Path.HasExtension(asset))
                 return true;
-            // get the file type (i.e. WEAPONFILE, FLAMETABLEFILE)
-            string configstringFileType = splitContents[0];
-            /*if (configstringFileType != "WEAPONFILE")
-            {
-                WriteConsole("WARNING: Ignoring asset " + assetName + " due to incompatible format of " + configstringFileType + "!", false);
-                Thread.Sleep(1000);
-                return true;
-            }*/
             return false;
         }
+       
         private static bool CheckIfFolder(string file)
         {
             // error out if we're exporting as a folder.
             FileAttributes attr = File.GetAttributes(file);
             return ((attr & FileAttributes.Directory) == FileAttributes.Directory);
         }
+      
         private static bool CheckIfFolder(string[] assets)
         {
-            bool folder;
             foreach (string file in assets)
             {
-                folder = CheckIfFolder(file);
-                if (folder)
+                if (CheckIfFolder(file))
                     return true;
             }
             return false;
         }
+        
         private static string GetAssetName(string asset)
         {
-            // get the asset name
             return Path.GetFileNameWithoutExtension(asset);
         }
+     
         private static string ConcactNotetrack(string notetracks)
         {
             // split at every \r\n instance
             string[] s_tracks = notetracks.Split('\r', '\n');
+            string[] track;
             string combined = "";
             // go through loop
             for (int i = 0; i < s_tracks.Length; i++)
@@ -202,13 +233,14 @@ namespace Weap2GDT
                 // get our entire track name since we don't split at a space, notice below
                 string total_track = s_tracks[i];
                 // now we split into: xanim_track[0] soundalias_track[1]
-                string[] track = total_track.Split(' ');
+                track = total_track.Split(' ');
                 track[1] += " \\r\\n";
                 // concat the strings together
                 combined += track[0] + " " + track[1];
             }
             return combined;
         }
+       
         private static string FixEffectsPath(string path)
         {
             // set generic fx path
@@ -217,13 +249,16 @@ namespace Weap2GDT
             m_path += path.Replace(@"/", @"\\") + ".efx";
             return m_path;
         }
+
         private static string DetermineGDFType(SortedDictionary<string, string> d_wf)
         {
             string GDFType = "";
             string assetClass = "";
-            // find if weaponType/Class and then pass to get its GDF type
+            // find if weaponType exists if so determine the GDF type as this is a "weapon"
             if (d_wf.TryGetValue("weaponType", out assetClass))
                 GDFType = GetGDFTypeFromClass(assetClass);
+            // the rest of the types are NOT weaponfiles
+            // maybe to-do on cleanup....
             else if (d_wf.TryGetValue("configstringFileType", out assetClass) && assetClass == "FLAMETABLEFILE")
                 GDFType = GetGDFTypeFromClass("flame");
             else if (d_wf.TryGetValue("configstringFileType", out assetClass) && assetClass == "BULLET_PEN_TABLE")
@@ -234,9 +269,11 @@ namespace Weap2GDT
                 WriteConsole("WARNING: Couldn't figure out the type of asset!", false);
             return GDFType;
         }
+
         private static string GetGDFTypeFromClass(string assetClass)
         {
             string GDFType = "";
+            //to-do: more assets?
             switch (assetClass)
             {
                 case "flame":
@@ -263,14 +300,25 @@ namespace Weap2GDT
             }
             return GDFType + ".gdf";
         }
+        
         private static void WriteAssetData(string assetName, string configstringGDFType, SortedDictionary<string, string> d_wf, StreamWriter file)
         {
+            // load all GDF properties now that we know what we're looking for
+            LoadKnownProperties(configstringGDFType);
+
             file.WriteLine("\t\"{0}\" ( \"{1}\" )", assetName, configstringGDFType);
             file.WriteLine("\t{");
             foreach (KeyValuePair<string, string> kvp in d_wf)
-                file.WriteLine("\t\t\"{0}\" \"{1}\"", kvp.Key, kvp.Value);
+            {
+                // filter them out to know what keys we're looking for
+                if (KnownProperties.ContainsKey(kvp.Key))
+                    file.WriteLine("\t\t\"{0}\" \"{1}\"", kvp.Key, kvp.Value);
+                else
+                    WriteConsole("Ignoring an invalid key: " + kvp.Key, false);
+            }
             file.WriteLine("\t}");
         }
+
         // streamlined console messages 
         private static void WriteConsole(string message, bool abort)
         {
@@ -280,6 +328,58 @@ namespace Weap2GDT
                 Console.WriteLine("Aborting...");
                 Thread.Sleep(2000);
                 Environment.Exit(1);
+            }
+        }
+
+        private static void LoadKnownProperties(string type)
+        {
+            KnownProperties = new Dictionary<string, PropertyInfo>();
+            // find the GDF by going to WaW\deffiles.
+            DirectoryInfo WaWBin = Directory.GetParent(Registry.GetValue("HKEY_CURRENT_USER\\Software\\iw\\CoDWaWRadiantModTool\\Radiant\\Prefs", "LastProject", null).ToString());
+            string GDF = Path.Combine(Directory.GetParent(WaWBin.ToString()).ToString(), "deffiles") + "\\" + type;
+
+            // Read existing properties from the GDF.
+            var contents = File.ReadAllText(GDF);
+
+            foreach (Match m in Regex.Matches(contents,
+                @"(?<controlType>\w+)\((?<defname>\w+)(?:, ){0,1}(?<extra>[^\)]+){0,1}\)\s+\[(?:[\s\S]*?)label\(""(?<label>[^""]+)""\)(?:(tooltip\(""(?<tooltip>[^""]+)""\)|[^}]))+"))
+            {
+                var prop = new PropertyInfo
+                {
+                    Property = m.Groups["defname"].Value,
+                    Description = m.Groups["tooltip"].Value,
+                    Label = m.Groups["label"].Value
+                };
+
+                // Read the "extra" information (increment values)
+                if (!string.IsNullOrEmpty(m.Groups["extra"].Value))
+                {
+                    var extra = m.Groups["extra"].Value.Split(',');
+                    if (extra.Length == 2)
+                    {
+                        prop.Increment = double.Parse(extra[0].Trim());
+                        prop.HoldIncrement = double.Parse(extra[1].Trim());
+                    }
+                }
+
+                // Convert the control types to runtime types.
+                switch (m.Groups["controlType"].Value)
+                {
+                    case "checkbox":
+                        prop.Type = typeof(bool);
+                        break;
+                    case "floatedit":
+                        prop.Type = typeof(float);
+                        break;
+                    case "spinedit":
+                        prop.Type = typeof(int);
+                        break;
+                    default:
+                        prop.Type = typeof(string);
+                        break;
+                }
+
+                KnownProperties.Add(prop.Property, prop);
             }
         }
     }
